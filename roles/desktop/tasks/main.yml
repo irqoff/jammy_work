@@ -1,0 +1,139 @@
+---
+- name: Configure favorite-apps
+  community.general.dconf:
+    key: /org/gnome/shell/favorite-apps
+    value: "['org.gnome.Nautilus.desktop']"
+    state: present
+  tags: ["gnome"]
+
+- name: Configure background
+  community.general.dconf:
+    key: /org/gnome/desktop/background/{{ item.key }}
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - {key: primary-color, value: "'#000000'"}
+    - {key: secondary-color, value: "'#000000'"}
+    - {key: picture-options, value: "'none'"}
+  tags: ["gnome"]
+
+- name: Configure GNOME
+  community.general.dconf:
+    key: /org/gnome/{{ item.key }}
+    value: "{{ item.value | string }}"
+    state: present
+  loop: "{{ gnome_configuration }}"
+  tags: ["gnome"]
+
+- name: List terminal profile
+  ansible.builtin.command: dconf list /org/gnome/terminal/legacy/profiles:/
+  register: terminal_profiles
+  changed_when: false
+
+- name: Configure GNOME Terminal keybinding
+  community.general.dconf:
+    key: "/org/gnome/terminal/legacy/keybindings/\
+      {{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - {key: copy, value: "'<Primary>c'"}
+    - {key: paste, value: "'<Primary>v'"}
+
+- name: Configure GNOME Terminal
+  community.general.dconf:
+    key: "/org/gnome/terminal/legacy/profiles:/\
+      {{ terminal_profiles['stdout'] }}{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - {key: visible-name, value: "'{{ ansible_env['USER'] }}'"}
+    - {key: background-color, value: "'rgb(0,0,0)'"}
+    - {key: foreground-color, value: "'rgb(255,255,255)'"}
+    - {key: use-theme-colors, value: "false"}
+    - {key: audible-bell, value: "false"}
+
+- name: Check SourceCodePro-Regular.otf
+  ansible.builtin.stat:
+    path: "{{ ansible_env['HOME'] }}/.fonts/SourceCodePro-Regular.otf"
+  register: source_code_pro
+
+- name: Install source-code-pro
+  block:
+    - name: Download source-code-pro
+      ansible.builtin.git:
+        repo: https://github.com/adobe-fonts/source-code-pro.git
+        dest: "{{ ansible_env['HOME'] }}/.source-code-pro"
+        version: release
+        depth: 1
+
+    - name: Create .fonts
+      ansible.builtin.file:
+        dest: "{{ ansible_env['HOME'] }}/.fonts"
+        state: directory
+        mode: '0770'
+
+    - name: Copy OTF files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ ansible_env['HOME'] }}/.fonts/{{ item | basename }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ q('fileglob', ansible_env['HOME']+'/.source-code-pro/OTF/*') }}"
+
+    - name: Build font cache
+      ansible.builtin.command: fc-cache -f -v
+  when: not source_code_pro.stat.exists
+
+- name: Configure GNOME Terminal fonts
+  community.general.dconf:
+    key: "/org/gnome/terminal/legacy/profiles:/\
+      {{ terminal_profiles['stdout'] }}{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - {key: font, value: "'Source Code Pro Medium 11'"}
+    - {key: use-system-font, value: "false"}
+
+- name: Configure hidden files
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env['HOME'] }}/.hidden"
+    block: |
+      Desktop
+      docs
+      Documents
+      Downloads
+      jammy_work
+      go
+      Music
+      Pictures
+      Public
+      snap
+      Templates
+      Videos
+    create: true
+    mode: '0660'
+  tags: ["hidden"]
+
+- name: Add shortcuts
+  ansible.builtin.include_tasks: add_shortcut.yml
+  loop: "{{ shortcuts }}"
+  loop_control:
+    loop_var: key
+  tags: ["shortcuts"]
+
+- name: Create custom-keybindings key
+  ansible.builtin.set_fact:
+    custom_keybindings: "{{ custom_keybindings|default([]) +
+      ['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/' +
+      item.key + '/'] }}"
+  loop: "{{ shortcuts }}"
+  tags: ["shortcuts"]
+
+- name: Configure custom-keybindings
+  ansible.builtin.dconf:
+    key: "/org/gnome/settings-daemon/plugins/media-keys/\
+      custom-keybindings"
+    value: "{{ custom_keybindings }}"
+    state: present
+  tags: ["shortcuts"]

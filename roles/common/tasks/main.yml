@@ -1,0 +1,84 @@
+---
+- name: Copy apt module
+  ansible.builtin.copy:
+    src: "/usr/lib/python3/dist-packages/{{ item.src }}"
+    dest: "{{ ansible_env['PYENV_VIRTUAL_ENV'] }}/lib/\
+      python3.10/site-packages/{{ item.dst }}"
+    remote_src: true
+    mode: preserve
+  loop:
+    - src: apt
+      dst: apt
+    - src: apt_inst.cpython-310-x86_64-linux-gnu.so
+      dst: apt_inst.so
+    - src: apt_pkg.cpython-310-x86_64-linux-gnu.so
+      dst: pt_pkg.so
+    - src: aptsources
+      dst: aptsources
+  tags: ["python"]
+
+- name: Update system
+  ansible.builtin.apt:
+    autoclean: true
+    autoremove: true
+    cache_valid_time: 600
+    upgrade: dist
+  become: true
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+  become: true
+
+- name: Copy .gitconfig
+  ansible.builtin.copy:
+    src: gitconfig
+    dest: "{{ ansible_env['HOME'] }}/.gitconfig"
+    mode: "0660"
+
+- name: Copy .vimrc
+  ansible.builtin.copy:
+    src: vimrc
+    dest: "{{ ansible_env['HOME'] }}/.vimrc"
+    mode: "0660"
+
+- name: Install Oh My Tmux
+  ansible.builtin.git:
+    repo: https://github.com/gpakosz/.tmux.git
+    dest: "{{ ansible_env['HOME'] }}/.tmux"
+    version: master
+
+- name: Create .tmux link
+  ansible.builtin.file:
+    src: "{{ ansible_env['HOME'] }}/.tmux/.tmux.conf"
+    dest: "{{ ansible_env['HOME'] }}/.tmux.conf"
+    state: link
+
+- name: Copy .tmux.conf.local
+  ansible.builtin.copy:
+    src: tmux.conf.local
+    dest: "{{ ansible_env['HOME'] }}/.tmux.conf.local"
+    mode: "0660"
+
+- name: Configure sudo
+  ansible.builtin.blockinfile:
+    path: "/etc/sudoers"
+    block: >-
+      {{ ansible_env['USER'] }} ALL=(ALL:ALL)
+      NOPASSWD: /usr/bin/apt,/sbin/reboot,/sbin/shutdown
+    validate: /usr/sbin/visudo -cf %s
+  become: "yes"
+
+- name: Install Docker
+  ansible.builtin.import_tasks: docker.yml
+  become: "yes"
+  tags: ["docker"]
+
+- name: Install hashicorp tools
+  ansible.builtin.import_tasks: hashicorp.yml
+  tags: ["hashicorp"]
+  when: vpn_enabled
+
+- name: Install vscode
+  ansible.builtin.import_tasks: vscode.yml
+  tags: ["vscode"]

@@ -1,0 +1,22 @@
+---
+- name: Install Hashicorp key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+  become: true
+  tags: ["hashicorp"]
+
+- name: Add Hashicorp repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com \
+      {{ ansible_distribution_release }} main"
+  become: true
+  tags: ["hashicorp"]
+
+- name: Install Hashicorp tools
+  ansible.builtin.apt:
+    name:
+      - terraform
+      - vagrant
+    update_cache: true
+  become: true
+  tags: ["hashicorp"]

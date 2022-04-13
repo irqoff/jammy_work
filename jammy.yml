@@ -1,0 +1,13 @@
+---
+- name: jammy configuration
+  hosts: localhost
+  connection: local
+  roles:
+    - role: common
+      tags: common
+    - role: bash
+      tags: bash
+    - role: desktop
+      tags: desktop
+    - role: linuxbrew
+      tags: linuxbrew

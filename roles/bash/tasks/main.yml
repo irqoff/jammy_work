@@ -1,0 +1,61 @@
+---
+- name: Install bash_it
+  ansible.builtin.git:
+    repo: https://github.com/Bash-it/bash-it.git
+    dest: "{{ ansible_env['HOME'] }}/.bash_it"
+    version: master
+
+- name: Configure bash_it
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env['HOME'] }}/.bashrc_{{ ansible_env['USER'] }}"
+    insertafter: EOF
+    marker_begin: bash_it_begin
+    marker_end: bash_it_end
+    marker: "# {mark}"
+    block: |
+      # If not running interactively, don't do anything
+      case $- in
+        *i*) ;;
+          *) return;;
+      esac
+      export BASH_IT="/home/{{ ansible_env['USER'] }}/.bash_it"
+      export BASH_IT_THEME='powerline'
+      unset MAILCHECK
+      export SCM_CHECK=true
+      source "$BASH_IT"/bash_it.sh
+
+- name: Copy .inputrc
+  ansible.builtin.copy:
+    src: inputrc
+    dest: "{{ ansible_env['HOME'] }}/.inputrc"
+    mode: '0660'
+
+- name: Configure go
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env['HOME'] }}/.bashrc_{{ ansible_env['USER'] }}"
+    insertbefore: "^# bashrc_begin"
+    marker_begin: go_begin
+    marker_end: go_end
+    marker: "# {mark}"
+    block: |
+      if [[ -x {{ ansible_env['HOME'] }}/.linuxbrew/bin/go ]]; then
+        export GOPATH={{ ansible_env['HOME'] }}/go
+        export GOROOT="$(brew --prefix golang)/libexec"
+      fi
+
+- name: Configure k8s
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env['HOME'] }}/.bashrc_{{ ansible_env['USER'] }}"
+    insertbefore: "^# bashrc_begin"
+    marker_begin: k8s_begin
+    marker_end: k8_end
+    marker: "# {mark}"
+    # yamllint disable rule:line-length
+    block: |
+      if [[ -x {{ ansible_env['HOME'] }}/.linuxbrew/bin/kubectl ]]; then
+        source <({{ ansible_env['HOME'] }}/.linuxbrew/bin/kubectl completion bash)
+      fi
+      if [[ -x {{ ansible_env['HOME'] }}/.linuxbrew/bin/minikube ]]; then
+        source <({{ ansible_env['HOME'] }}/.linuxbrew/bin/minikube completion bash)
+      fi
+    # yamllint enable rule:line-length

@@ -1,0 +1,58 @@
+---
+- name: Install VS code key
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/apt/trusted.gpg.d/microsoft.asc
+    mode: '0664'
+  become: true
+  changed_when: false
+
+- name: Dearmor microsoft.asc
+  ansible.builtin.shell:
+    cmd: >
+      cat /etc/apt/trusted.gpg.d/microsoft.asc | gpg --dearmor >
+      /etc/apt/trusted.gpg.d/packages.microsoft.gpg
+    creates: /etc/apt/trusted.gpg.d/packages.microsoft.gpg
+  become: true
+
+- name: Remove /etc/apt/trusted.gpg.d/microsoft.asc
+  file:
+    path: /etc/apt/trusted.gpg.d/microsoft.asc
+    state: absent
+  become: true
+  changed_when: false
+
+- name: Add vscode APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/\
+      packages.microsoft.gpg] https://packages.microsoft.com/repos/code \
+      stable main"
+    filename: vscode
+  become: true
+
+- name: Install vscode
+  ansible.builtin.apt:
+    name:
+      - code-insiders
+    update_cache: "yes"
+  become: true
+
+- name: Install vscode plugins
+  command: code-insiders --install-extension {{ item.name }}
+  args:
+    creates: "{{ ansible_env['HOME'] }}/\
+    .vscode-insiders/extensions/{{ item.path }}"
+  loop: "{{ vscode_plugings }}"
+
+- name: Copy vscode configuration
+  template:
+    src: settings.json.j2
+    dest: "{{ ansible_env['HOME'] }}/.config/Code - Insiders/User/settings.json"
+    mode: '0660'
+
+- name: Install Go tools (Modules mode)
+  command: go install -v {{ item }}
+  loop: "{{ go_packages }}"
+  register: result
+  changed_when: "'downloading' in result.stderr"
+  tags: ["brew_package", "go"]

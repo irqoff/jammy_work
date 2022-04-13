@@ -1,0 +1,13 @@
+{
+    "terminal.integrated.fontFamily": "'Source Code Pro'",
+    "workbench.startupEditor": "none",
+    "go.alternateTools": {
+        "go": "{{ ansible_env['HOME'] }}/.linuxbrew/bin/go"
+    },
+    "redhat.telemetry.enabled": false,
+    "vs-kubernetes": {
+        "vscode-kubernetes.helm-path.linux": "{{ ansible_env['HOME'] }}/.linuxbrew/bin/helm",
+        "vscode-kubernetes.kubectl-path.linux": "{{ ansible_env['HOME'] }}/.linuxbrew/bin/kubectl",
+        "vscode-kubernetes.minikube-path.linux": "{{ ansible_env['HOME'] }}/.linuxbrew/bin/minikube"
+    }
+}
