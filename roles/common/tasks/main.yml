@@ -30,6 +30,10 @@
     name: "{{ common_packages }}"
   become: true
 
+- name: Install snap common packages
+  community.general.snap:
+    name: "{{ snap_common_packages }}"
+
 - name: Copy .gitconfig
   ansible.builtin.copy:
     src: gitconfig

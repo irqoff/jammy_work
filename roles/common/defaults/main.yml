@@ -6,6 +6,8 @@ common_packages:
   - gnupg2
   - pass
   - vlc
+snap_common_packages:
+  - slack
 
 vscode_plugings:
   - {
